@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>我的资产仪表盘</title>
+<style>
+:root{
+  --blue:#2563eb; --blue-l:#dbeafe; --red:#dc2626; --red-l:#fee2e2;
+  --green:#16a34a; --green-l:#dcfce7; --amber:#d97706; --amber-l:#fef3c7;
+  --text:#1e293b; --text2:#64748b; --bg:#f1f5f9; --card:#fff; --border:#e2e8f0;
+  --nav-h:58px; --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;font-size:15px}
+button{font-family:inherit;cursor:pointer;border:none;background:none;font-size:14px}
+input,select{font-family:inherit;font-size:15px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;width:100%;background:#fff;color:var(--text)}
+input:focus,select:focus{outline:2px solid var(--blue-l);border-color:var(--blue)}
+label{display:block;font-size:13px;color:var(--text2);margin:10px 0 4px}
+
+/* ---------- 锁屏 ---------- */
+#lock{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(150deg,#0f2461,#1e3a8a 55%,#2563eb);z-index:100;padding:20px}
+#lock .lockbox{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(8px);border-radius:20px;padding:34px 30px;width:100%;max-width:380px;color:#fff}
+#lock h1{font-size:22px;display:flex;align-items:center;gap:10px;margin-bottom:6px}
+#lock p{font-size:13px;opacity:.8;margin-bottom:18px}
+#lock input{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
+#lock input::placeholder{color:rgba(255,255,255,.5)}
+#lock input:focus{outline:none;border-color:#fff;background:rgba(255,255,255,.18)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:10px;font-weight:600;transition:.15s}
+.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:#1d4ed8}
+.btn-g{background:#f1f5f9;color:var(--text)}.btn-g:hover{background:#e2e8f0}
+.btn-d{background:var(--red-l);color:var(--red)}.btn-d:hover{background:#fecaca}
+.btn-block{width:100%}
+#lock .btn-p{background:#fff;color:#1e3a8a}#lock .btn-p:hover{background:#e0e7ff}
+#lock .btn-g{background:rgba(255,255,255,.1);color:#fff}#lock .btn-g:hover{background:rgba(255,255,255,.2)}
+.lockmsg{font-size:13px;min-height:20px;margin-top:12px;color:#fecaca}
+.linkbtn{color:#93c5fd;font-size:13px;margin-top:14px;background:none;padding:0}
+
+/* ---------- 恢复码弹窗 ---------- */
+.recovery-wrap{background:var(--amber-l);border:1px dashed var(--amber);border-radius:10px;padding:14px;margin:14px 0}
+.recovery-code{font-family:Consolas,monospace;font-size:17px;letter-spacing:2px;font-weight:700;word-break:break-all;background:#fff;border-radius:8px;padding:10px;margin-top:8px;text-align:center}
+
+/* ---------- 应用主体 ---------- */
+#app{display:none;max-width:980px;margin:0 auto;padding:14px 14px calc(var(--nav-h) + 24px)}
+header.top{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 12px}
+header.top .t{font-size:19px;font-weight:700;display:flex;align-items:center;gap:8px}
+header.top .syncbadge{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
+header.top .actions{display:flex;gap:8px}
+.iconbtn{width:38px;height:38px;border-radius:10px;background:var(--card);border:1px solid var(--border);font-size:17px;display:flex;align-items:center;justify-content:center}
+.iconbtn:hover{background:#f8fafc}
+
+/* 指标卡 */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+.card .k{font-size:12.5px;color:var(--text2)}
+.card .v{font-size:23px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.card .sub{font-size:12px;margin-top:2px;color:var(--text2)}
+.up{color:var(--red)}.down{color:var(--green)}
+.bigcard{background:linear-gradient(135deg,#1e3a8a,#2563eb);border:none;color:#fff}
+.bigcard .k{color:rgba(255,255,255,.75)}.bigcard .sub{color:rgba(255,255,255,.75)}
+
+/* 视图与导航 */
+.view{display:none;animation:fadein .2s}
+.view.on{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+nav.mainnav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:#fff;border-top:1px solid var(--border);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+nav.mainnav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11.5px;color:var(--text2);border-top:2px solid transparent}
+nav.mainnav button .ic{font-size:19px}
+nav.mainnav button.on{color:var(--blue);border-top-color:var(--blue);font-weight:600;background:#f8fafc}
+
+.section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+.section h3{font-size:15px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.section h3 .r{font-weight:400;font-size:12.5px;color:var(--text2)}
+
+/* 表格 */
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{text-align:left;color:var(--text2);font-weight:500;font-size:12px;padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+.tbl td{padding:9px 8px;border-bottom:1px solid #f1f5f9;vertical-align:middle;font-variant-numeric:tabular-nums}
+.tbl tr:last-child td{border-bottom:none}
+.tbl .num{text-align:right;white-space:nowrap}
+.clickable{cursor:pointer}.clickable:hover{background:#f8fafc}
+.warn-badge{display:inline-block;background:var(--amber-l);color:var(--amber);border-radius:999px;font-size:11px;padding:1px 8px;font-weight:600}
+.tag{display:inline-block;background:#f1f5f9;color:var(--text2);border-radius:6px;font-size:11px;padding:1px 7px;white-space:nowrap}
+.tag-qdii{background:#ede9fe;color:#7c3aed}.tag-stock{background:#fee2e2;color:#dc2626}
+.tag-fund{background:#dbeafe;color:#2563eb}.tag-bond{background:#dcfce7;color:#16a34a}
+.tag-pension{background:#fef3c7;color:#d97706}.tag-cash{background:#f1f5f9;color:#475569}
+.tag-realestate{background:#e2e8f0;color:#334155}.tag-mmf{background:#cffafe;color:#0891b2}
+
+/* 饼图图例 */
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12.5px;margin-top:12px}
+.legend .li{display:flex;align-items:center;gap:6px}
+.legend .sw{width:12px;height:12px;border-radius:3px}
+
+/* 弹窗 */
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:90;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.on{display:flex}
+.modal{background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;max-height:88vh;overflow-y:auto;padding:20px 20px 28px;animation:up .2s}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+@media(min-width:640px){
+  .modal-bg{align-items:center}
+  .modal{border-radius:18px}
+}
+.modal h2{font-size:17px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.modal .close{font-size:20px;color:var(--text2);padding:4px 8px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.modal .btnrow{display:flex;gap:10px;margin-top:20px}
+.muted{color:var(--text2);font-size:12.5px}
+.helpsteps{font-size:13.5px}
+.helpsteps li{margin:10px 0;padding-left:6px}
+.helpsteps code{background:#f1f5f9;padding:1px 6px;border-radius:5px;font-size:12.5px}
+
+/* toast */
+#toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toastitem{background:#1e293b;color:#fff;padding:9px 18px;border-radius:999px;font-size:13.5px;box-shadow:0 4px 14px rgba(0,0,0,.25);animation:fadein .2s;max-width:88vw}
+.toastitem.err{background:var(--red)}.toastitem.ok{background:var(--green)}
+
+/* 设置页列表 */
+.setlist{display:flex;flex-direction:column}
+.setrow{display:flex;justify-content:space-between;align-items:center;padding:13px 2px;border-bottom:1px solid #f1f5f9;gap:10px}
+.setrow:last-child{border-bottom:none}
+.setrow .l .t{font-size:14.5px}
+.setrow .l .d{font-size:12px;color:var(--text2)}
+.statustip{font-size:12.5px;border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.tip-amber{background:var(--amber-l);color:#92400e}
+.tip-blue{background:var(--blue-l);color:#1e40af}
+.tip-green{background:var(--green-l);color:#166534}
+
+/* 配置建议 */
+.advice{border-left:3px solid var(--blue);background:#f8fafc;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:13.5px}
+.advice.bad{border-color:var(--red);background:var(--red-l)}
+.advice.good{border-color:var(--green);background:var(--green-l)}
+.advice.warn{border-color:var(--amber);background:var(--amber-l)}
+.chart-wrap{overflow-x:auto}
+@media(max-width:640px){
+  body{font-size:14px}
+  .card .v{font-size:20px}
+  .tbl{font-size:12.5px}
+  .hide-m{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 锁屏 ============ -->
+<div id="lock">
+  <div class="lockbox">
+    <h1>🔒 资产仪表盘</h1>
+    <p>数据经 AES-256 加密，仅限本人访问</p>
+    <div id="lockCreate" style="display:none">
+      <label style="color:rgba(255,255,255,.75)">设置访问密码（至少 8 位，务必牢记）</label>
+      <input type="password" id="newPwd1" placeholder="输入密码">
+      <label style="color:rgba(255,255,255,.75)">再输入一次</label>
+      <input type="password" id="newPwd2" placeholder="确认密码">
+      <button class="btn btn-p btn-block" style="margin-top:18px" onclick="createVault()">创建并进入</button>
+      <div class="lockmsg" id="createMsg"></div>
+    </div>
+    <div id="lockEnter" style="display:none">
+      <label style="color:rgba(255,255,255,.75)">访问密码</label>
+      <input type="password" id="pwd" placeholder="输入密码" onkeydown="if(event.key==='Enter')unlock()">
+      <button class="btn btn-p btn-block" style="margin-top:18px" onclick="unlock()">解锁</button>
+      <button class="linkbtn" onclick="showImportOnLock()">从备份文件恢复…</button>
+      <div class="lockmsg" id="lockMsg"></div>
+    </div>
+    <div id="lockRecovery" style="display:none">
+      <p style="font-size:14px;line-height:1.7">⚠️ 忘记密码时，可使用首次创建时生成的<b>恢复码</b>解锁。恢复码同样可以重置。</p>
+      <label style="color:rgba(255,255,255,.75)">输入恢复码</label>
+      <input type="text" id="recCode" placeholder="XXXX-XXXX-XXXX-XXXX" style="text-transform:uppercase">
+      <button class="btn btn-p btn-block" style="margin-top:18px" onclick="unlockWithRecovery()">用恢复码解锁</button>
+      <button class="linkbtn" onclick="backToPwd()">← 返回密码登录</button>
+      <div class="lockmsg" id="recMsg"></div>
+    </div>
+    <div id="lockImport" style="display:none">
+      <p style="font-size:14px;line-height:1.7">选择之前导出的加密备份文件，恢复后用原密码解锁。</p>
+      <input type="file" id="importFileLock" accept=".json,.avbak" style="color:#fff;margin-top:10px">
+      <div class="lockmsg" id="impMsg"></div>
+      <button class="linkbtn" onclick="backToPwd()">← 返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 应用 ============ -->
+<div id="app">
+  <header class="top">
+    <div class="t">📊 我的资产仪表盘</div>
+    <div class="syncbadge" id="syncBadge"></div>
+    <div class="actions">
+      <button class="iconbtn" title="刷新行情" onclick="refreshQuotes(true)">🔄</button>
+      <button class="iconbtn" title="设置" onclick="showView('settings')">⚙️</button>
+    </div>
+  </header>
+
+  <!-- 总览 -->
+  <section class="view" id="v-overview">
+    <div class="cards" id="ovCards"></div>
+    <div class="section">
+      <h3>⚠️ 需要留意 <span class="r" id="warnCount"></span></h3>
+      <div id="warnList"></div>
+    </div>
+    <div class="section">
+      <h3>资产分类概览 <span class="r">点击「配置」查看结构分析</span></h3>
+      <div class="tbl-wrap"><table class="tbl" id="ovClassTbl"></table></div>
+    </div>
+  </section>
+
+  <!-- 曲线 -->
+  <section class="view" id="v-trend">
+    <div class="section">
+      <h3>📈 资产变化曲线
+        <span class="r"><label style="display:inline-flex;align-items:center;gap:4px;font-size:12.5px;cursor:pointer"><input type="checkbox" id="inclRE" style="width:auto" onchange="renderTrend()">包含房产</label></span>
+      </h3>
+      <div class="chart-wrap"><div id="lineChart"></div></div>
+      <div class="muted" style="margin-top:8px">每次打开页面自动记录当日快照；也可在下方补录历史数据点。</div>
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-g" onclick="addHistoryPoint()">➕ 补录历史点</button>
+        <button class="btn btn-g" onclick="exportSnapshots()">📋 导出快照数据</button>
+      </div>
+    </div>
+    <div class="section">
+      <h3>快照记录</h3>
+      <div class="tbl-wrap"><table class="tbl" id="snapTbl"></table></div>
+    </div>
+  </section>
+
+  <!-- 配置 -->
+  <section class="view" id="v-alloc">
+    <div class="cards" id="allocCards"></div>
+    <div class="section">
+      <h3>🥧 资产配置结构 <span class="r">金融资产口径（不含房产）</span></h3>
+      <div id="pieChart" style="display:flex;justify-content:center"></div>
+      <div class="legend" id="pieLegend" style="justify-content:center"></div>
+    </div>
+    <div class="section">
+      <h3>📋 配置体检（按你的年龄自动生成参考区间）</h3>
+      <div class="muted" id="allocMeta" style="margin-bottom:10px"></div>
+      <div id="adviceList"></div>
+    </div>
+    <div class="section">
+      <h3>🔄 再平衡参考 <span class="r">仅供参考，不含房产</span></h3>
+      <div class="tbl-wrap"><table class="tbl" id="rebalTbl"></table></div>
+    </div>
+  </section>
+
+  <!-- 归集 -->
+  <section class="view" id="v-accounts">
+    <div id="acctGroups"></div>
+    <div class="section" style="text-align:center">
+      <button class="btn btn-g" onclick="openAccountModal()">➕ 新增账户 / APP</button>
+    </div>
+  </section>
+
+  <!-- 明细 -->
+  <section class="view" id="v-holdings">
+    <div class="section">
+      <h3>💡 快速修正 <span class="r">发现估值与 APP 显示不符时使用</span></h3>
+      <div class="muted">点击任意持仓行的「修正」，填入 APP 实际显示的市值，系统会记录偏差系数并自动校准后续估算。</div>
+    </div>
+    <div class="section">
+      <h3>我的持仓 <span class="r" id="holdCount"></span></h3>
+      <div class="tbl-wrap"><table class="tbl" id="holdTbl"></table></div>
+      <button class="btn btn-p" style="margin-top:14px" onclick="openHoldModal()">➕ 新增持仓</button>
+    </div>
+  </section>
+
+  <!-- 设置 -->
+  <section class="view" id="v-settings">
+    <div class="section">
+      <h3>☁️ 云端同步（GitHub）</h3>
+      <div id="syncTip"></div>
+      <div id="syncForm">
+        <label>GitHub 用户名</label>
+        <input id="ghUser" placeholder="你的 GitHub 用户名">
+        <label>Personal Access Token（需要 gist 权限）</label>
+        <input id="ghToken" placeholder="ghp_ 或 github_pat_ 开头" type="password">
+        <div class="row2" style="margin-top:16px">
+          <button class="btn btn-p" onclick="ghConnect()">连接并同步</button>
+          <button class="btn btn-g" onclick="ghPullOnly(true)">从云端拉取</button>
+        </div>
+        <div class="muted" style="margin-top:10px">Token 只保存在本设备浏览器中，不会上传到任何地方；云端只存 AES 加密后的密文。</div>
+      </div>
+      <div style="margin-top:14px"><button class="btn btn-g" onclick="showModal('m-guide')">📖 GitHub 注册与 Token 获取图文指引</button></div>
+    </div>
+
+    <div class="section">
+      <h3>👤 个人信息（用于配置建议）</h3>
+      <div class="row3">
+        <div><label>年龄</label><input type="number" id="setAge" onchange="saveSettings()"></div>
+        <div><label>月支出（应急金测算）</label><input type="number" id="setExpense" onchange="saveSettings()"></div>
+        <div><label>风险偏好</label><select id="setRisk" onchange="saveSettings()">
+          <option value="conservative">保守</option><option value="balanced" selected>均衡</option><option value="aggressive">进取</option>
+        </select></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>🔐 安全与数据</h3>
+      <div class="setlist">
+        <div class="setrow"><div class="l"><div class="t">修改访问密码</div><div class="d">需先解锁，输入旧密码后设置新密码</div></div><button class="btn btn-g" onclick="changePwdFlow()">修改</button></div>
+        <div class="setrow"><div class="l"><div class="t">查看恢复码</div><div class="d">忘记密码时的唯一补救手段，请抄写在安全的地方</div></div><button class="btn btn-g" onclick="showRecovery()">查看</button></div>
+        <div class="setrow"><div class="l"><div class="t">导出加密备份</div><div class="d">下载加密文件，存入自己的网盘或U盘</div></div><button class="btn btn-g" onclick="exportBackup()">导出</button></div>
+        <div class="setrow"><div class="l"><div class="t">从备份文件恢复</div><div class="d">用导出的文件覆盖当前数据（会先确认）</div></div><button class="btn btn-g" onclick="importBackup()">恢复</button></div>
+        <div class="setrow"><div class="l"><div class="t">锁屏</div><div class="d">立即锁定，需重新输入密码</div></div><button class="btn btn-g" onclick="lockNow()">🔒 锁定</button></div>
+        <div class="setrow"><div class="l"><div class="t" style="color:var(--red)">清空全部数据</div><div class="d">不可恢复，请先导出备份</div></div><button class="btn btn-d" onclick="wipeData()">清空</button></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>ℹ️ 关于</h3>
+      <div class="muted" style="line-height:1.9">
+        私人资产仪表盘 V1.0 · 单文件网页应用<br>
+        · 数据使用 AES-256-GCM 加密（密码经 PBKDF2 派生密钥，15 万次迭代），本页与云端均不存明文密码<br>
+        · 行情来源：腾讯证券公开行情、天天基金公开估值接口，仅读取公开价格，不接入任何账户<br>
+        · 建议内容为参考信息，不构成投资建议
+      </div>
+    </div>
+  </section>
+
+  <nav class="mainnav">
+    <button data-v="overview" class="on" onclick="showView('overview')"><span class="ic">🏠</span>总览</button>
+    <button data-v="trend" onclick="showView('trend')"><span class="ic">📈</span>曲线</button>
+    <button data-v="alloc" onclick="showView('alloc')"><span class="ic">🥧</span>配置</button>
+    <button data-v="accounts" onclick="showView('accounts')"><span class="ic">🏦</span>归集</button>
+    <button data-v="holdings" onclick="showView('holdings')"><span class="ic">📋</span>明细</button>
+    <button data-v="settings" onclick="showView('settings')"><span class="ic">⚙️</span>设置</button>
+  </nav>
+</div>
+
+<!-- ============ 通用弹窗层 ============ -->
+<div class="modal-bg" id="m-hold" onclick="if(event.target===this)hideModal('m-hold')"><div class="modal">
+  <h2>持仓信息 <button class="close" onclick="hideModal('m-hold')">✕</button></h2>
+  <div class="row2">
+    <div><label>名称 *</label><input id="hName" placeholder="如：广发纳指100A"></div>
+    <div><label>代码 / 编号</label><input id="hCode" placeholder="如 270042 / sh600519"></div>
+  </div>
+  <div class="row2">
+    <div><label>资产类型 *</label><select id="hType" onchange="holdTypeChanged()">
+      <option value="stock">A股股票（实时行情）</option>
+      <option value="fund">场外基金（净值+盘中估值）</option>
+      <option value="qdii">QDII 海外基金（净值+盘中估算）</option>
+      <option value="pension">养老金定投（场外基金）</option>
+      <option value="bond">国债 / 债券（按票息计息）</option>
+      <option value="mmf">货币基金 / 零钱通（手动+收益估算）</option>
+      <option value="cash">现金 / 活期（手动）</option>
+      <option value="realestate">房产等大额资产（手动估值）</option>
+    </select></div>
+    <div><label>所在账户 / APP *</label><select id="hAcct"></select></div>
+  </div>
+  <div id="hQuoteHint" class="statustip tip-blue" style="margin-top:12px"></div>
+  <div class="row2" id="hQtyRow">
+    <div><label id="hQtyLabel">持有份额 / 数量 *</label><input type="number" id="hQty" step="any"></div>
+    <div><label>累计投入成本（元）*</label><input type="number" id="hCost" step="any"></div>
+  </div>
+  <div class="row2" id="hCashRow" style="display:none">
+    <div><label>当前余额（元）</label><input type="number" id="hBal" step="any"></div>
+    <div><label>七日年化（%，零钱通/货基选填）</label><input type="number" id="hYield" step="any" placeholder="如 1.5"></div>
+  </div>
+  <div class="row3" id="hBondRow" style="display:none">
+    <div><label>面值总额（元）</label><input type="number" id="hFace" step="any"></div>
+    <div><label>年利率（%）</label><input type="number" id="hRate" step="any"></div>
+    <div><label>买入日期</label><input type="date" id="hBuyDate"></div>
+  </div>
+  <div id="hRERow" style="display:none"><label>当前估值净值（元）</label><input type="number" id="hREVal" step="any"></div>
+  <label>备注</label><input id="hNote" placeholder="选填">
+  <div class="muted" id="hFactorInfo" style="margin-top:10px"></div>
+  <div class="btnrow">
+    <button class="btn btn-g" onclick="hideModal('m-hold')">取消</button>
+    <button class="btn btn-p" style="flex:1" onclick="saveHold()">保存</button>
+  </div>
+  <div id="hDelWrap" style="margin-top:14px;text-align:center"></div>
+</div></div>
+
+<div class="modal-bg" id="m-correct" onclick="if(event.target===this)hideModal('m-correct')"><div class="modal">
+  <h2 id="cTitle">修正估值 <button class="close" onclick="hideModal('m-correct')">✕</button></h2>
+  <div class="statustip tip-blue" id="cInfo"></div>
+  <label>APP / 券商实际显示市值（元）</label>
+  <input type="number" id="cActual" step="any">
+  <div class="muted" style="margin-top:10px" id="cFactor"></div>
+  <div class="btnrow">
+    <button class="btn btn-g" onclick="clearFactor()">清除修正系数</button>
+    <button class="btn btn-p" style="flex:1" onclick="saveCorrection()">保存修正</button>
+  </div>
+</div></div>
+
+<div class="modal-bg" id="m-acct" onclick="if(event.target===this)hideModal('m-acct')"><div class="modal">
+  <h2>账户信息 <button class="close" onclick="hideModal('m-acct')">✕</button></h2>
+  <label>账户 / APP 名称 *</label><input id="aName" placeholder="如：天天基金、招行APP、华泰证券">
+  <label>类型</label><select id="aKind"><option value="bank">银行卡</option><option value="app">基金/理财 APP</option><option value="broker">证券账户</option><option value="other">其他</option></select>
+  <div class="btnrow">
+    <button class="btn btn-g" onclick="hideModal('m-acct')">取消</button>
+    <button class="btn btn-p" style="flex:1" onclick="saveAccount()">保存</button>
+  </div>
+  <div id="aDelWrap" style="margin-top:14px;text-align:center"></div>
+</div></div>
+
+<div class="modal-bg" id="m-guide" onclick="if(event.target===this)hideModal('m-guide')"><div class="modal">
+  <h2>GitHub 注册与 Token 指引 <button class="close" onclick="hideModal('m-guide')">✕</button></h2>
+  <div class="helpsteps">
+    <b>第 1 步 · 注册 GitHub（免费，约 3 分钟）</b>
+    <li>电脑浏览器打开 <code>github.com</code>，点右上角 <b>Sign up</b></li>
+    <li>填邮箱 → 设置密码（这是 GitHub 网站密码，与仪表盘密码无关）→ 用户名（英文）→ 验证邮箱</li>
+    <b>第 2 步 · 生成 Token（约 2 分钟）</b>
+    <li>登录后打开 <code>github.com/settings/tokens</code>，点 <b>Generate new token → Fine-grained token</b></li>
+    <li>名字随意填（如 <code>asset-vault</code>），过期时间选 <b>No expiration</b>（永不过期）</li>
+    <li>权限只勾选 <b>Account permissions → Gists → Read and write</b>，其他都不动</li>
+    <li>点底部 <b>Generate token</b>，<b>立刻复制</b>显示的 token（只显示一次！），粘贴到本页「云端同步」表单里</li>
+    <b>第 3 步 · 在每台设备上各连一次</b>
+    <li>家庭电脑、公司电脑、手机浏览器分别打开本页 → 设置 → 云端同步，输入用户名和 Token → 连接并同步</li>
+    <li>之后所有设备的数据自动保持一致（加密后存入你的 GitHub 私密 Gist，别人无法读取内容）</li>
+    <div class="statustip tip-amber" style="margin-top:14px">⚠️ Token 相当于云盘钥匙，只填在本页，不要发给任何人。若怀疑泄露，去 GitHub 同一页面点 Revoke 作废即可。</div>
+  </div>
+</div></div>
+
+<div class="modal-bg" id="m-recovery" onclick="if(event.target===this)hideModal('m-recovery')"><div class="modal">
+  <h2>恢复码 <button class="close" onclick="hideModal('m-recovery')">✕</button></h2>
+  <div class="recovery-wrap">
+    <b style="font-size:13px">请抄写或拍照保存以下恢复码，存放在安全的地方：</b>
+    <div class="recovery-code" id="recoveryShow"></div>
+  </div>
+  <div class="muted">恢复码与密码等效，可随时解锁数据。若恢复码也丢失，加密数据将<b>永远无法打开</b>——请务必妥善保存。</div>
+  <div class="btnrow"><button class="btn btn-p" style="flex:1" onclick="copyRecovery()">复制恢复码</button></div>
+</div></div>
+
+<div class="modal-bg" id="m-pwd" onclick="if(event.target===this)hideModal('m-pwd')"><div class="modal">
+  <h2>修改访问密码 <button class="close" onclick="hideModal('m-pwd')">✕</button></h2>
+  <label>当前密码</label><input type="password" id="oldPwd">
+  <label>新密码（至少 8 位）</label><input type="password" id="newPwd">
+  <label>确认新密码</label><input type="password" id="newPwd2b">
+  <div class="lockmsg" id="pwdMsg" style="color:var(--red)"></div>
+  <div class="btnrow"><button class="btn btn-p" style="flex:1" onclick="doChangePwd()">确认修改</button></div>
+</div></div>
+
+<div class="modal-bg" id="m-hist" onclick="if(event.target===this)hideModal('m-hist')"><div class="modal">
+  <h2>补录历史快照 <button class="close" onclick="hideModal('m-hist')">✕</button></h2>
+  <label>日期</label><input type="date" id="hsDate">
+  <label>当日金融资产总额（元，不含房产）</label><input type="number" id="hsFin" step="any">
+  <label>当日房产净值（元，选填）</label><input type="number" id="hsRE" step="any">
+  <div class="btnrow"><button class="btn btn-p" style="flex:1" onclick="saveHistPoint()">保存</button></div>
+</div></div>
+
+<input type="file" id="importFileSettings" accept=".json,.avbak" style="display:none">
+<div id="toast"></div>
+
+<script>
+/* =====================================================
+   私人资产仪表盘 V1.0 —— 全部逻辑
+   ===================================================== */
+'use strict';
+const LS_VAULT='av_v1_vault', LS_DATA='av_v1_data', LS_GH='av_1_github';
+const $=id=>document.getElementById(id);
+const fmt=(n,d)=>n==null||isNaN(n)?'--':Number(n).toLocaleString('zh-CN',{minimumFractionDigits:d??0,maximumFractionDigits:d??0});
+const fmtY=n=>n==null||isNaN(n)?'--':'¥'+fmt(n, n>=100000?0:(n>=10000?0:2));
+const fmtPct=n=>n==null||isNaN(n)?'--':(n>=0?'+':'')+n.toFixed(2)+'%';
+const signCls=n=>n>0?'up':(n<0?'down':'');
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+
+let DATA=null, dekKey=null, editHoldId=null, editAcctId=null, QUOTES={};
+
+/* ---------------- 加密层 ---------------- */
+const enc=new TextEncoder(), dec=new TextDecoder();
+const b2s=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const s2b=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKek(pass,salt){
+  const base=await crypto.subtle.importKey('raw',enc.encode(pass),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function aesEnc(key,plainBuf){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plainBuf);
+  return {iv:b2s(iv),ct:b2s(ct)};
+}
+async function aesDec(key,obj){
+  return crypto.subtle.decrypt({name:'AES-GCM',iv:s2b(obj.iv)},key,s2b(obj.ct));
+}
+function genRecoveryCode(){
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s='';
+  const r=crypto.getRandomValues(new Uint8Array(16));
+  for(let i=0;i<16;i++){s+=c[r[i]%c.length]; if(i%4===3&&i<15)s+='-';}
+  return s;
+}
+function hasVault(){return !!localStorage.getItem(LS_VAULT)}
+async function createVault(){
+  const p1=$('newPwd1').value, p2=$('newPwd2').value;
+  if(p1.length<8){$('createMsg').textContent='密码至少 8 位';return}
+  if(p1!==p2){$('createMsg').textContent='两次输入不一致';return}
+  const dek=crypto.getRandomValues(new Uint8Array(32));
+  const recCode=genRecoveryCode();
+  const saltP=crypto.getRandomValues(new Uint8Array(16)), saltR=crypto.getRandomValues(new Uint8Array(16));
+  const wrapP=await aesEnc(await deriveKek(p1,saltP),dek);
+  const wrapR=await aesEnc(await deriveKek(recCode,saltR),dek);
+  localStorage.setItem(LS_VAULT,JSON.stringify({v:1,pwd:{salt:b2s(saltP),...wrapP},rec:{salt:b2s(saltR),...wrapR}}));
+  dekKey=await crypto.subtle.importKey('raw',dek,{name:'AES-GCM'},false,['encrypt','decrypt']);
+  DATA=demoData();
+  await persistData();
+  sessionStorage.setItem('av_recovered',recCode);
+  bootApp();
+  setTimeout(()=>{showModal('m-recovery'); $('recoveryShow').textContent=sessionStorage.getItem('av_recovered')},400);
+}
+async function tryUnlock(pass,isRecovery){
+  const vault=JSON.parse(localStorage.getItem(LS_VAULT));
+  const blk=isRecovery?vault.rec:vault.pwd;
+  try{
+    const dek=await aesDec(await deriveKek(pass,s2b(blk.salt)),blk);
+    dekKey=await crypto.subtle.importKey('raw',dek,{name:'AES-GCM'},false,['encrypt','decrypt']);
+    const raw=await aesDec(dekKey,JSON.parse(localStorage.getItem(LS_DATA)));
+    DATA=JSON.parse(dec.decode(raw));
+    return true;
+  }catch(e){return false}
+}
+let failCount=0;
+async function unlock(){
+  if(failCount>=5){$('lockMsg').textContent='尝试次数过多，请刷新页面后稍后再试';return}
+  const ok=await tryUnlock($('pwd').value,false);
+  if(ok){failCount=0;bootApp()}
+  else{failCount++;$('lockMsg').textContent='密码错误（'+failCount+'/5）'}
+}
+async function unlockWithRecovery(){
+  const code=$('recCode').value.trim().toUpperCase();
+  const ok=await tryUnlock(code,true);
+  if(ok)bootApp(); else $('recMsg').textContent='恢复码不正确';
+}
+async function persistData(pushCloud=true){
+  DATA.updatedAt=Date.now();
+  const blob=await aesEnc(dekKey,enc.encode(JSON.stringify(DATA)));
+  localStorage.setItem(LS_DATA,JSON.stringify(blob));
+  if(pushCloud) schedulePush();
+}
+let pushTimer=null;
+function schedulePush(){
+  if(!getGH())return;
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(()=>ghPush().catch(()=>{}),3000);
+  setSyncBadge('⏳ 待同步');
+}
+
+/* ---------------- 行情层 ---------------- */
+function loadScript(src,timeout=9000){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script'); let done=false;
+    const t=setTimeout(()=>{if(!done){done=true;s.remove();rej(new Error('timeout'))}},timeout);
+    s.src=src; s.onerror=()=>{if(!done){done=true;clearTimeout(t);s.remove();rej(new Error('load error'))}};
+    s.onload=()=>{if(!done){done=true;clearTimeout(t);setTimeout(()=>s.remove(),200);res()}};
+    document.body.appendChild(s);
+  });
+}
+async function fetchStocks(codes){ // 腾讯行情，全局变量方式取数
+  if(!codes.length)return;
+  const url='https://qt.gtimg.cn/q='+codes.join(',');
+  await loadScript(url);
+  codes.forEach(c=>{
+    const v=window['v_'+c];
+    if(typeof v==='string'){
+      const p=v.split('~');
+      if(p.length>45) QUOTES['st_'+c]={name:p[1],price:parseFloat(p[3]),prev:parseFloat(p[4]),time:p[30]};
+    }
+  });
+}
+async function fetchFund(code){ // 天天基金估值接口（JSONP）
+  return new Promise(async(res)=>{
+    let settled=false;
+    const old=window.jsonpgz;
+    window.jsonpgz=d=>{settled=true;QUOTES['fd_'+code]={name:d.name,gsz:parseFloat(d.gsz),dwjz:parseFloat(d.dwjz),gszzl:parseFloat(d.gszzl),jzrq:d.jzrq,gztime:d.gztime};res()};
+    try{ await loadScript('https://fundgz.1234567.com.cn/js/'+code+'.js',8000); }catch(e){}
+    window.jsonpgz=old;
+    if(!settled)res();
+  });
+}
+function stockCode(raw){
+  let c=(raw||'').trim().toLowerCase();
+  if(!c)return null;
+  if(/^(sh|sz|bj)/.test(c))return c;
+  if(/^\d{6}$/.test(c)) return c[0]==='6'||c[0]==='9'||c[0]==='5'?'sh'+c:(c[0]==='4'||c[0]==='8'?'bj'+c:'sz'+c);
+  return null;
+}
+async function refreshQuotes(manual){
+  const stocks=[],funds=[];
+  DATA.holdings.forEach(h=>{
+    if(h.type==='stock'){const c=stockCode(h.code);if(c)stocks.push(c)}
+    if(['fund','qdii','pension'].includes(h.type)&&/^\d{6}$/.test((h.code||'').trim()))funds.push(h.code.trim());
+  });
+  const tasks=[fetchStocks([...new Set(stocks)])];
+  tasks.push((async()=>{ // 估值接口共用 jsonpgz 回调，必须串行请求
+    for(const f of [...new Set(funds)]) await fetchFund(f);
+  })());
+  await Promise.all(tasks);
+  // 缓存最近已知净值，接口失败时兜底
+  DATA.holdings.forEach(h=>{
+    if(['fund','qdii','pension'].includes(h.type)){
+      const q=QUOTES['fd_'+(h.code||'').trim()];
+      if(q&&q.dwjz) h.lastNav={nav:q.dwjz,date:q.jzrq};
+    }
+  });
+  await persistData();
+  renderAll();
+  if(manual)toast('行情已更新','ok');
+}
+function estHolding(h){ // 返回 {raw, prevRaw, note, live}
+  const f=h.factor||1;
+  let raw=null,prevRaw=null,note='',live=false;
+  if(h.type==='stock'){
+    const c=stockCode(h.code), q=c?QUOTES['st_'+c]:null;
+    if(q&&q.price>0){raw=q.price*h.qty;prevRaw=q.prev*h.qty;live=true;note='实时价 '+q.price}
+    else{raw=(h.lastPrice||0)*h.qty;note='未获取行情'}
+  }else if(['fund','qdii','pension'].includes(h.type)){
+    const q=QUOTES['fd_'+(h.code||'').trim()];
+    if(q){
+      if(q.gsz>0){raw=q.gsz*h.qty;prevRaw=q.dwjz*h.qty;live=true;
+        note=(h.type==='qdii'?'盘中估算 ':'估值 ')+q.gztime+' · 净值日 '+q.jzrq}
+      else if(q.dwjz>0){raw=q.dwjz*h.qty;note='最新净值 '+q.jzrq}
+    }
+    if(raw==null&&h.lastNav){raw=h.lastNav.nav*h.qty;note='缓存净值 '+h.lastNav.date}
+    if(h.type==='qdii'&&!live&&raw!=null)note+='（QDII 估值可能滞后 1–2 个交易日）';
+  }else if(h.type==='bond'){
+    const face=h.face||0,rate=(h.rate||0)/100,d0=h.buyDate?new Date(h.buyDate):null;
+    if(d0&&!isNaN(d0)){
+      const days=Math.max(0,(Date.now()-d0.getTime())/86400000);
+      raw=(h.cost||0)+face*rate*days/365; prevRaw=raw-face*rate/365; live=true;
+      note='按票息计息 '+days.toFixed(0)+' 天';
+    }else raw=h.cost||0;
+  }else if(h.type==='mmf'){
+    raw=h.bal||0; prevRaw=raw-((h.bal||0)*((h.yield7||0)/100)/365); live=true;
+    note=h.yield7?('七日年化 '+h.yield7+'%'):'手动维护';
+  }else if(h.type==='cash'){
+    raw=h.bal||0; note='手动维护';
+  }else if(h.type==='realestate'){
+    raw=h.reVal||0; note='手动估值';
+  }
+  return {raw,prevRaw:prevRaw??raw,note,live,val:(raw==null?null:raw*f),todayPnl:(raw==null||prevRaw==null?null:(raw-prevRaw)*f)};
+}
+
+/* ---------------- 渲染层 ---------------- */
+const CLASS_META={
+  stock:{label:'A股股票',color:'#dc2626'}, fund:{label:'场外基金',color:'#2563eb'},
+  qdii:{label:'QDII 海外',color:'#7c3aed'}, pension:{label:'养老金',color:'#d97706'},
+  bond:{label:'国债/债券',color:'#16a34a'}, mmf:{label:'货币基金',color:'#0891b2'},
+  cash:{label:'现金活期',color:'#64748b'}, realestate:{label:'房产',color:'#334155'}
+};
+function calcTotals(){
+  const byClass={},t={fin:0,re:0,cost:0,today:0};
+  DATA.holdings.forEach(h=>{
+    const e=estHolding(h); if(e.val==null)return;
+    byClass[h.type]=(byClass[h.type]||0)+e.val;
+    if(h.type==='realestate'){t.re+=e.val;return}
+    t.fin+=e.val; t.cost+=(h.cost||e.val); t.today+=(e.todayPnl||0);
+  });
+  return {byClass,...t};
+}
+function renderAll(){t_finCache=calcTotals().fin;renderOverview();renderTrend();renderAlloc();renderAccounts();renderHoldings();fillSettings();setSyncBadge();}
+function renderOverview(){
+  const t=calcTotals();
+  const total=t.fin+t.re, totalPnl=t.fin-t.cost;
+  const totalPct=t.cost>0?totalPnl/t.cost*100:null;
+  $('ovCards').innerHTML=`
+    <div class="card bigcard"><div class="k">总资产（含房产）</div><div class="v">${fmtY(total)}</div><div class="sub">金融 ${fmtY(t.fin)} · 房产 ${fmtY(t.re)}</div></div>
+    <div class="card"><div class="k">今日预估盈亏</div><div class="v ${signCls(t.today)}">${t.today>=0?'+':''}${fmt(t.today,0)}</div><div class="sub">基于公开行情估算</div></div>
+    <div class="card"><div class="k">累计投入（金融）</div><div class="v">${fmtY(t.cost)}</div><div class="sub">${DATA.holdings.filter(h=>h.type!=='realestate').length} 项持仓</div></div>
+    <div class="card"><div class="k">累计收益（金融）</div><div class="v ${signCls(totalPnl)}">${totalPnl>=0?'+':''}${fmt(totalPnl,0)}</div><div class="sub">${totalPct!=null?fmtPct(totalPct):''}</div></div>`;
+  let rows='<tr><th>类别</th><th class="num">市值</th><th class="num">占比(金融)</th></tr>';
+  Object.entries(t.byClass).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
+    rows+=`<tr class="clickable" onclick="showView('alloc')"><td><span class="tag tag-${k}">${CLASS_META[k].label}</span></td><td class="num">${fmtY(v)}</td><td class="num">${(t.fin>0?(k==='realestate'?v/(t.fin+t.re):v/t.fin)*100:0).toFixed(1)}%</td></tr>`;
+  });
+  $('ovClassTbl').innerHTML=rows;
+  renderWarnings();
+}
+let t_finCache=0;
+function renderWarnings(){
+  const warns=[];
+  DATA.holdings.forEach(h=>{
+    const e=estHolding(h);
+    if(e.val!=null&&Math.abs((h.factor||1)-1)>0.05) warns.push(`${h.name}：修正系数 ${(h.factor||1).toFixed(3)}，偏离超 5%，估算与实际可能存在结构性偏差`);
+    if(h.type==='qdii'&&(!h.corrections||!h.corrections.length)){
+      const q=QUOTES['fd_'+(h.code||'').trim()];
+      if(q&&q.gsz>0) warns.push(`${h.name}：QDII 估算依赖滞后净值，建议每月对照 APP 实际市值点一次「修正」`);
+    }
+    if(e.val==null) warns.push(`${h.name}：无法估值，请检查代码/数据是否填写正确`);
+  });
+  if(DATA.settings&&DATA.settings.expense&&t_finCache>0){
+    const cash=(DATA.holdings.filter(h=>h.type==='cash'||h.type==='mmf').reduce((s,h)=>s+(estHolding(h).val||0),0));
+    if(cash < DATA.settings.expense*3) warns.push(`应急金偏少：现金类 ${fmtY(cash)}，不足 3 个月支出（${fmtY(DATA.settings.expense*3)}）`);
+  }
+  $('warnCount').textContent=warns.length?warns.length+' 项':'一切正常 ✓';
+  $('warnList').innerHTML=warns.length
+    ? warns.map(w=>`<div class="advice warn" style="margin:6px 0">${w}</div>`).join('')
+    : '<div class="advice good" style="margin:6px 0">所有持仓估值正常，无异常偏差。</div>';
+}
+function renderTrend(){
+  const snaps=[...(DATA.snapshots||[])].sort((a,b)=>a.d<b.d?-1:1);
+  const inclRE=$('inclRE').checked;
+  const pts=snaps.map(s=>({d:s.d,v:inclRE?(s.fin+(s.re||0)):s.fin}));
+  t_finCache=pts.length?pts[pts.length-1].v:0;
+  $('lineChart').innerHTML=lineChartSVG(pts);
+  let rows='<tr><th>日期</th><th class="num">金融资产</th><th class="num">房产净值</th><th class="num">合计</th></tr>';
+  [...snaps].reverse().slice(0,60).forEach(s=>{
+    rows+=`<tr><td>${s.d}</td><td class="num">${fmtY(s.fin)}</td><td class="num">${fmtY(s.re||0)}</td><td class="num">${fmtY(s.fin+(s.re||0))}</td></tr>`;
+  });
+  $('snapTbl').innerHTML=rows;
+}
+function lineChartSVG(pts){
+  const W=Math.max(320,Math.min(860,pts.length*34)),H=260,P={l:64,r:14,t:16,b:30};
+  if(pts.length<2)return '<div class="muted" style="padding:40px 0;text-align:center">快照不足 2 个：从明天开始每次打开页面会自动记录，也可以补录历史点。</div>';
+  const vs=pts.map(p=>p.v),min=Math.min(...vs)*0.995,max=Math.max(...vs)*1.005;
+  const x=i=>P.l+(W-P.l-P.r)*i/(pts.length-1);
+  const y=v=>H-P.b-(H-P.b-P.t)*(v-min)/(max-min);
+  let grid='',labels='';
+  for(let g=0;g<=4;g++){
+    const v=min+(max-min)*g/4, yy=y(v);
+    grid+=`<line x1="${P.l}" x2="${W-P.r}" y1="${yy}" y2="${yy}" stroke="#e2e8f0" stroke-width="1"/>`;
+    labels+=`<text x="${P.l-6}" y="${yy+4}" text-anchor="end" font-size="11" fill="#64748b">${v>=10000?(v/10000).toFixed(1)+'万':fmt(v,0)}</text>`;
+  }
+  const path=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ');
+  const area=path+` L ${x(pts.length-1)} ${H-P.b} L ${x(0)} ${H-P.b} Z`;
+  let xl='';
+  pts.forEach((p,i)=>{ if(pts.length<=10||i%Math.ceil(pts.length/8)===0) xl+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="#64748b">${p.d.slice(5)}</text>`});
+  const last=pts[pts.length-1], first=pts[0];
+  const chg=(last.v-first.v)/first.v*100;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
+    ${grid}${labels}
+    <path d="${area}" fill="rgba(37,99,235,.10)"/>
+    <path d="${path}" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linejoin="round"/>
+    <circle cx="${x(pts.length-1)}" cy="${y(last.v)}" r="4" fill="#2563eb"/>
+    <circle cx="${x(0)}" cy="${y(first.v)}" r="3" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+    ${xl}
+    <text x="${W-P.r}" y="${P.t+2}" text-anchor="end" font-size="12" fill="${chg>=0?'#dc2626':'#16a34a'}" font-weight="700">区间${chg>=0?'涨':'跌'} ${fmtPct(chg)}</text>
+  </svg>`;
+}
+function renderAlloc(){
+  const t=calcTotals(); t_finCache=t.fin;
+  const finClasses=Object.keys(CLASS_META).filter(k=>k!=='realestate');
+  const pieData=finClasses.filter(k=>(t.byClass[k]||0)>0.01).map(k=>({k,v:t.byClass[k],c:CLASS_META[k].color}));
+  $('pieChart').innerHTML=pieSVG(pieData);
+  $('pieLegend').innerHTML=pieData.map(d=>`<div class="li"><span class="sw" style="background:${d.c}"></span>${CLASS_META[d.k].label} ${(t.fin>0?(d.v/t.fin*100).toFixed(1):0)}%</div>`).join('');
+  const age=(DATA.settings&&DATA.settings.age)||40;
+  const risk=(DATA.settings&&DATA.settings.risk)||'balanced';
+  const rAdj=risk==='conservative'?-10:(risk==='aggressive'?10:0);
+  const eqRef=[Math.max(20,100-age-10+rAdj),Math.min(80,100-age+10+rAdj)];
+  const ovsRef=[10,25];
+  const eq=(t.byClass.stock+t.byClass.fund)/(t.fin||1)*100;
+  const ovs=t.byClass.qdii/(t.fin||1)*100;
+  const bond=t.byClass.bond/(t.fin||1)*100;
+  const pension=t.byClass.pension/(t.fin||1)*100;
+  const cash=(t.byClass.cash+t.byClass.mmf)/(t.fin||1)*100;
+  const expM=(DATA.settings&&DATA.settings.expense)||0;
+  const cashAbs=t.byClass.cash+t.byClass.mmf;
+  $('allocCards').innerHTML=`
+    <div class="card"><div class="k">权益类（A股+基金）</div><div class="v">${eq.toFixed(1)}%</div><div class="sub">参考区间 ${eqRef[0]}–${eqRef[1]}%（按${age}岁·${risk==='conservative'?'保守':risk==='aggressive'?'进取':'均衡'}）</div></div>
+    <div class="card"><div class="k">海外资产（QDII）</div><div class="v">${ovs.toFixed(1)}%</div><div class="sub">参考区间 ${ovsRef[0]}–${ovsRef[1]}%</div></div>
+    <div class="card"><div class="k">现金类</div><div class="v">${cash.toFixed(1)}%</div><div class="sub">${expM?`约合 ${(cashAbs/expM).toFixed(1)} 个月支出`:''}</div></div>`;
+  const adv=[];
+  adv.push(eq<eqRef[0]-3?['bad',`权益占比较低（${eq.toFixed(1)}%），低于同龄参考区间下限 ${eqRef[0]}%。距离退休还有约 ${60-age} 年，可考虑逐步加仓宽基/红利类权益资产（如通过定投分批）。`]
+        :eq>eqRef[1]+3?['warn',`权益占比较高（${eq.toFixed(1)}%），超过同龄参考区间上限 ${eqRef[1]}%，波动风险偏大，可考虑适度向债券/现金再平衡。`]
+        :['good',`权益占比 ${eq.toFixed(1)}%，处于同龄参考区间 ${eqRef[0]}–${eqRef[1]}% 内，结构合理。`]);
+  adv.push(ovs<ovsRef[0]-2?['warn',`海外资产 ${ovs.toFixed(1)}%，低于参考区间 ${ovsRef[0]}–${ovsRef[1]}%，A 股与美股相关性低，适当配置可分散单一市场风险。`]
+        :ovs>ovsRef[1]+5?['warn',`海外资产 ${ovs.toFixed(1)}% 偏高，注意 QDII 限购与汇率波动风险。`]
+        :['good',`海外配置 ${ovs.toFixed(1)}%，处于参考区间内。`]);
+  if(expM) adv.push(cashAbs>=expM*6?['good',`应急金 ${fmtY(cashAbs)}，覆盖 ${(cashAbs/expM).toFixed(1)} 个月支出，达到 6 个月安全线以上。`]
+        :cashAbs>=expM*3?['warn',`应急金覆盖 ${(cashAbs/expM).toFixed(1)} 个月支出，建议逐步补足到 6 个月（目标 ${fmtY(expM*6)}）。`]
+        :['bad',`应急金仅覆盖 ${(cashAbs/expM).toFixed(1)} 个月支出，偏低。建议优先补足应急金再考虑加仓投资。`]);
+  if(pension>0) adv.push(['good',`已配置养老金定投（占比 ${pension.toFixed(1)}%），40 岁开始坚持定投是很正确的决定，可关注个人养老金账户的税收优惠额度。`]);
+  $('adviceList').innerHTML=adv.map(a=>`<div class="advice ${a[0]}">${a[1]}</div>`).join('');
+  $('allocMeta').textContent=`当前按 ${age} 岁 · ${risk==='conservative'?'保守型':risk==='aggressive'?'进取型':'均衡型'} 风险偏好评估；可在「设置」中调整。`;
+  // 再平衡表
+  const eqMid=(eqRef[0]+eqRef[1])/2, ovsMid=(ovsRef[0]+ovsRef[1])/2;
+  const targets=[['权益类（A股+场外基金）',eq,eqMid],['QDII 海外',ovs,ovsMid],['债券/国债',bond,Math.max(0,100-eqMid-ovsMid-10)],['养老金',pension,null],['现金类',cash,null]];
+  let rows='<tr><th>类别</th><th class="num">当前占比</th><th class="num">参考中值</th><th class="num">建议调整金额</th></tr>';
+  targets.forEach(([n,cur,mid])=>{
+    let sug='';
+    if(mid!=null&&Math.abs(cur-mid)>4){
+      const amt=(mid-cur)/100*t.fin;
+      sug=`<span class="${signCls(amt)}">${amt>0?'加仓 ':'减仓 '}${fmtY(Math.abs(amt))}</span>`;
+    }else sug='<span class="muted">—</span>';
+    rows+=`<tr><td>${n}</td><td class="num">${cur.toFixed(1)}%</td><td class="num">${mid==null?'—':mid.toFixed(1)+'%'}</td><td class="num">${sug}</td></tr>`;
+  });
+  $('rebalTbl').innerHTML=rows;
+}
+function pieSVG(data){
+  const total=data.reduce((s,d)=>s+d.v,0), R=88, C=2*Math.PI*R;
+  let off=0, arcs='';
+  data.forEach(d=>{
+    const frac=d.v/total, len=frac*C;
+    arcs+=`<circle r="${R}" cx="110" cy="110" fill="none" stroke="${d.c}" stroke-width="42" stroke-dasharray="${(len-1.5).toFixed(1)} ${C}" stroke-dashoffset="${(-off).toFixed(1)}" transform="rotate(-90 110 110)"/>`;
+    off+=len;
+  });
+  return `<svg viewBox="0 0 220 220" style="width:min(240px,80vw)">
+    ${arcs}
+    <text x="110" y="104" text-anchor="middle" font-size="12" fill="#64748b">金融总资产</text>
+    <text x="110" y="126" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">${total>=10000?(total/10000).toFixed(1)+'万':fmt(total,0)}</text>
+  </svg>`;
+}
+function renderAccounts(){
+  const groups={};
+  DATA.holdings.forEach(h=>{
+    const a=DATA.accounts.find(x=>x.id===h.accountId)||{id:'none',name:'未分组',kind:'other'};
+    (groups[a.id]=groups[a.id]||{a,items:[],total:0}).items.push(h);
+  });
+  const acctOrder=['bank','app','broker','other'];
+  let html='';
+  acctOrder.forEach(kind=>{
+    Object.values(groups).filter(g=>g.a.kind===kind).forEach(g=>{
+      g.total=g.items.reduce((s,h)=>s+(estHolding(h).val||0),0);
+      const kindName={bank:'银行卡',app:'基金/理财APP',broker:'证券账户',other:'其他'}[kind];
+      let rows='<tr><th>持仓</th><th class="num">市值</th><th class="num hide-m">今日</th></tr>';
+      g.items.forEach(h=>{
+        const e=estHolding(h);
+        rows+=`<tr class="clickable" onclick="openHoldModal('${h.id}')"><td><span class="tag tag-${h.type}">${CLASS_META[h.type].label}</span> ${h.name}</td><td class="num">${fmtY(e.val)}</td><td class="num hide-m ${signCls(e.todayPnl)}">${e.todayPnl==null?'—':(e.todayPnl>=0?'+':'')+fmt(e.todayPnl,0)}</td></tr>`;
+      });
+      html+=`<div class="section"><h3>${g.a.name} <span class="tag">${kindName}</span>
+        <span class="r">${fmtY(g.total)} <button class="btn btn-g" style="padding:4px 10px;font-size:12px" onclick="openAccountModal('${g.a.id}')">编辑</button></span></h3>
+        <div class="tbl-wrap"><table class="tbl">${rows}</table></div></div>`;
+    });
+  });
+  $('acctGroups').innerHTML=html||'<div class="section muted" style="text-align:center;padding:30px">还没有账户，先在下方新增一个吧</div>';
+}
+function renderHoldings(){
+  let rows='<tr><th>名称</th><th class="num">市值</th><th class="num hide-m">今日</th><th class="num hide-m">累计收益</th><th class="num">操作</th></tr>';
+  const list=[...DATA.holdings].sort((a,b)=>(estHolding(b).val||0)-(estHolding(a).val||0));
+  list.forEach(h=>{
+    const e=estHolding(h), pnl=e.val==null?null:e.val-(h.cost||0);
+    const warn=Math.abs((h.factor||1)-1)>0.05?' <span class="warn-badge">校准</span>':'';
+    rows+=`<tr class="clickable" onclick="openHoldModal('${h.id}')">
+      <td><span class="tag tag-${h.type}">${CLASS_META[h.type].label}</span><br>${h.name}${warn}<div class="muted">${e.note}</div></td>
+      <td class="num">${fmtY(e.val)}</td>
+      <td class="num hide-m ${signCls(e.todayPnl)}">${e.todayPnl==null?'—':(e.todayPnl>=0?'+':'')+fmt(e.todayPnl,0)}</td>
+      <td class="num hide-m ${signCls(pnl)}">${pnl==null||h.type==='realestate'?'—':(pnl>=0?'+':'')+fmt(pnl,0)}</td>
+      <td class="num"><button class="btn btn-g" style="padding:5px 10px;font-size:12.5px" onclick="event.stopPropagation();openCorrect('${h.id}')">修正</button></td></tr>`;
+  });
+  $('holdTbl').innerHTML=rows;
+  $('holdCount').textContent=DATA.holdings.length+' 项';
+}
+
+/* ---------------- 持仓编辑 ---------------- */
+function openHoldModal(id){
+  editHoldId=id||null;
+  const h=id?DATA.holdings.find(x=>x.id===id):null;
+  $('hAcct').innerHTML=DATA.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')||'<option value="">请先在「归集」页添加账户</option>';
+  $('hName').value=h?h.name:''; $('hCode').value=h?h.code:'';
+  $('hType').value=h?h.type:'fund'; $('hQty').value=h?h.qty:''; $('hCost').value=h?h.cost:'';
+  $('hBal').value=h?h.bal:''; $('hYield').value=h?(h.yield7||''):'';
+  $('hFace').value=h?h.face:''; $('hRate').value=h?h.rate:''; $('hBuyDate').value=h?h.buyDate||'':'';
+  $('hREVal').value=h?h.reVal:''; $('hNote').value=h?h.note||'':'';
+  $('hDelWrap').innerHTML=h?`<button class="btn btn-d" style="padding:8px 22px" onclick="delHold('${h.id}')">删除此持仓</button>`:'';
+  holdTypeChanged();
+  showModal('m-hold');
+}
+function holdTypeChanged(){
+  const t=$('hType').value;
+  $('hQtyRow').style.display=['stock','fund','qdii','pension'].includes(t)?'grid':'none';
+  $('hCashRow').style.display=['cash','mmf'].includes(t)?'grid':'none';
+  $('hBondRow').style.display=t==='bond'?'grid':'none';
+  $('hRERow').style.display=t==='realestate'?'block':'none';
+  $('hQtyLabel').textContent=t==='stock'?'持有股数 *':'持有份额 *';
+  const hints={
+    stock:'填写 6 位股票代码（如 600519），自动识别交易所并拉取实时价。',
+    fund:'填写 6 位基金代码（如 008114），自动拉取每日净值与盘中估值。',
+    qdii:'填写 6 位 QDII 基金代码（如 270042 纳指100、050025 标普500）。QDII 净值滞后 1–2 天，系统用官方盘中估算修正，建议每月手动修正一次。',
+    pension:'填写养老金定投的场外基金代码，估值方式同场外基金。',
+    bond:'按面值 × 年利率从买入日起线性计息，到期前估值稳定。',
+    mmf:'手动填余额，可填七日年化收益率让系统估算每日收益。',
+    cash:'纯手动维护余额，建议每月核对一次。',
+    realestate:'手动填估值净值，不参与再平衡建议，只作总资产参考。'
+  };
+  $('hQuoteHint').textContent=hints[t];
+  if(editHoldId){
+    const h=DATA.holdings.find(x=>x.id===editHoldId);
+    const c=h.corrections&&h.corrections.length?h.corrections[h.corrections.length-1]:null;
+    $('hFactorInfo').textContent=(h.factor&&h.factor!==1)?`当前修正系数 ${h.factor.toFixed(4)}${c?`（${c.date} 按实际 ${fmtY(c.actual)} 校准）`:''}`:'';
+  }else $('hFactorInfo').textContent='';
+}
+async function saveHold(){
+  const name=$('hName').value.trim(), type=$('hType').value, accountId=$('hAcct').value;
+  if(!name){toast('请填写名称','err');return}
+  if(!accountId){toast('请先在「归集」页添加账户','err');return}
+  const base={name,type,accountId,code:$('hCode').value.trim(),note:$('hNote').value.trim()};
+  if(['stock','fund','qdii','pension'].includes(type)){
+    base.qty=parseFloat($('hQty').value)||0; base.cost=parseFloat($('hCost').value)||0;
+    if(!base.qty){toast('请填写份额/数量','err');return}
+  }else if(type==='cash'||type==='mmf'){
+    base.bal=parseFloat($('hBal').value)||0; base.cost=base.bal;
+    if(type==='mmf')base.yield7=parseFloat($('hYield').value)||0;
+  }else if(type==='bond'){
+    base.face=parseFloat($('hFace').value)||0; base.rate=parseFloat($('hRate').value)||0;
+    base.buyDate=$('hBuyDate').value; base.cost=parseFloat($('hCost').value)||base.face;
+  }else if(type==='realestate'){
+    base.reVal=parseFloat($('hREVal').value)||0; base.cost=base.reVal;
+  }
+  if(editHoldId){
+    const i=DATA.holdings.findIndex(x=>x.id===editHoldId);
+    DATA.holdings[i]={...DATA.holdings[i],...base};
+  }else{
+    DATA.holdings.push({id:uid(),factor:1,corrections:[],...base});
+  }
+  await persistData();
+  hideModal('m-hold');
+  await refreshQuotes(false);
+  toast('已保存','ok');
+}
+async function delHold(id){
+  if(!confirm('确定删除此持仓？相关修正记录也会删除。'))return;
+  DATA.holdings=DATA.holdings.filter(h=>h.id!==id);
+  await persistData(); hideModal('m-hold'); renderAll(); toast('已删除','ok');
+}
+/* 修正 */
+function openCorrect(id){
+  editHoldId=id;
+  const h=DATA.holdings.find(x=>x.id===id);
+  const e=estHolding(h);
+  $('cTitle').innerHTML='修正估值 · '+h.name+' <button class="close" onclick="hideModal(\'m-correct\')">✕</button>';
+  $('cInfo').innerHTML=`当前估算市值：<b>${fmtY(e.val)}</b><br>${e.note}<br>原理：填入 APP 实际显示的市值后，系统按「实际÷估算」记录修正系数，自动校准后续估值。`;
+  $('cActual').value='';
+  const c=h.corrections&&h.corrections.length?h.corrections[h.corrections.length-1]:null;
+  $('cFactor').textContent=(h.factor&&h.factor!==1)?`当前系数 ${h.factor.toFixed(4)}${c?`，上次修正 ${c.date}`:''}`:'当前无修正系数';
+  showModal('m-correct');
+}
+async function saveCorrection(){
+  const h=DATA.holdings.find(x=>x.id===editHoldId);
+  const actual=parseFloat($('cActual').value);
+  if(!actual||actual<=0){toast('请输入实际市值','err');return}
+  const e=estHolding(h);
+  if(!e.raw||e.raw<=0){toast('当前无法估算该持仓，暂不能修正','err');return}
+  const newF=actual/e.raw, oldF=h.factor||1;
+  h.factor=Math.min(2,Math.max(0.3, oldF*0.3+newF*0.7)); // 平滑更新，限幅防误操作
+  h.corrections=h.corrections||[];
+  h.corrections.push({date:todayStr(),raw:e.raw,actual,factor:h.factor});
+  if(h.corrections.length>24)h.corrections.shift();
+  await persistData(); hideModal('m-correct'); renderAll();
+  toast(`已校准（系数 ${h.factor.toFixed(3)}）`,'ok');
+}
+async function clearFactor(){
+  const h=DATA.holdings.find(x=>x.id===editHoldId);
+  h.factor=1; await persistData(); hideModal('m-correct'); renderAll(); toast('已清除修正系数','ok');
+}
+/* 账户 */
+function openAccountModal(id){
+  editAcctId=id||null;
+  const a=id?DATA.accounts.find(x=>x.id===id):null;
+  $('aName').value=a?a.name:''; $('aKind').value=a?a.kind:'app';
+  $('aDelWrap').innerHTML=a?`<button class="btn btn-d" style="padding:8px 22px" onclick="delAccount('${a.id}')">删除此账户</button>`:'';
+  showModal('m-acct');
+}
+async function saveAccount(){
+  const name=$('aName').value.trim();
+  if(!name){toast('请填写名称','err');return}
+  if(editAcctId){const a=DATA.accounts.find(x=>x.id===editAcctId);a.name=name;a.kind=$('aKind').value}
+  else DATA.accounts.push({id:uid(),name,kind:$('aKind').value});
+  await persistData(); hideModal('m-acct'); renderAll(); toast('已保存','ok');
+}
+async function delAccount(id){
+  const used=DATA.holdings.filter(h=>h.accountId===id).length;
+  if(used){toast('该账户下还有 '+used+' 项持仓，请先移走或删除','err');return}
+  if(!confirm('确定删除此账户？'))return;
+  DATA.accounts=DATA.accounts.filter(a=>a.id!==id);
+  await persistData(); hideModal('m-acct'); renderAll(); toast('已删除','ok');
+}
+
+/* ---------------- 设置 ---------------- */
+function fillSettings(){
+  if(!DATA.settings)DATA.settings={age:40,expense:null,risk:'balanced'};
+  $('setAge').value=DATA.settings.age||40;
+  $('setExpense').value=DATA.settings.expense||'';
+  $('setRisk').value=DATA.settings.risk||'balanced';
+  const gh=getGH();
+  $('syncTip').innerHTML=gh?`<div class="statustip tip-green">✅ 已连接 GitHub：<b>${gh.user}</b> · Gist ${gh.gistId?'已绑定':'首次推送时自动创建'}。数据保存后自动加密上传。</div>`:`<div class="statustip tip-amber">尚未连接：当前数据只存在<b>本设备浏览器</b>中。换设备或清浏览器数据会丢失，请尽快连接云端同步或定期导出备份。</div>`;
+  if(gh){$('ghUser').value=gh.user;$('ghToken').value=gh.token}
+  renderSyncBadgeOnly();
+}
+async function saveSettings(){
+  DATA.settings.age=parseInt($('setAge').value)||40;
+  DATA.settings.expense=parseFloat($('setExpense').value)||null;
+  DATA.settings.risk=$('setRisk').value;
+  await persistData(); renderAlloc(); renderWarnings();
+}
+async function showRecovery(){
+  const p=prompt('请输入当前访问密码以查看恢复码：');
+  if(!p)return;
+  const vault=JSON.parse(localStorage.getItem(LS_VAULT));
+  let dekRaw;
+  try{dekRaw=await aesDec(await deriveKek(p,s2b(vault.pwd.salt)),vault.pwd)}
+  catch(e){toast('密码错误','err');return}
+  const recCode=genRecoveryCode(); // 每次查看生成新恢复码，旧恢复码同时作废
+  const saltR=crypto.getRandomValues(new Uint8Array(16));
+  const wrapR=await aesEnc(await deriveKek(recCode,saltR),dekRaw);
+  vault.rec={salt:b2s(saltR),...wrapR};
+  localStorage.setItem(LS_VAULT,JSON.stringify(vault));
+  sessionStorage.setItem('av_recovered',recCode);
+  $('recoveryShow').textContent=recCode;
+  showModal('m-recovery');
+  schedulePush();
+}
+async function changePwdFlow(){showModal('m-pwd');$('pwdMsg').textContent=''}
+async function doChangePwd(){
+  const o=$('oldPwd').value,n=$('newPwd').value,n2=$('newPwd2b').value;
+  if(n.length<8){$('pwdMsg').textContent='新密码至少 8 位';return}
+  if(n!==n2){$('pwdMsg').textContent='两次新密码不一致';return}
+  if(!(await tryUnlock(o,false))){$('pwdMsg').textContent='当前密码错误';return}
+  // 解出 DEK 原文，重新包装
+  const vault=JSON.parse(localStorage.getItem(LS_VAULT));
+  const dekRaw=await aesDec(await deriveKek(o,s2b(vault.pwd.salt)),vault.pwd);
+  const saltP=crypto.getRandomValues(new Uint8Array(16)), saltR=crypto.getRandomValues(new Uint8Array(16));
+  const recCode=genRecoveryCode();
+  const wrapP=await aesEnc(await deriveKek(n,saltP),dekRaw);
+  const wrapR=await aesEnc(await deriveKek(recCode,saltR),dekRaw);
+  localStorage.setItem(LS_VAULT,JSON.stringify({v:1,pwd:{salt:b2s(saltP),...wrapP},rec:{salt:b2s(saltR),...wrapR}}));
+  sessionStorage.setItem('av_recovered',recCode);
+  hideModal('m-pwd');
+  ['oldPwd','newPwd','newPwd2b'].forEach(i=>$(i).value='');
+  $('recoveryShow').textContent=recCode;
+  showModal('m-recovery');
+  toast('密码已修改，恢复码已更新，请重新保存','ok');
+  schedulePush();
+}
+function copyRecovery(){
+  const c=$('recoveryShow').textContent;
+  navigator.clipboard&&navigator.clipboard.writeText(c);
+  toast('已复制，请存放到安全位置','ok');
+}
+async function exportBackup(){
+  const bundle={app:'asset-vault',v:1,exportedAt:new Date().toISOString(),
+    vault:JSON.parse(localStorage.getItem(LS_VAULT)),data:JSON.parse(localStorage.getItem(LS_DATA))};
+  dl(JSON.stringify(bundle),'资产仪表盘备份-'+todayStr()+'.json');
+  toast('已导出加密备份','ok');
+}
+function dl(text,name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+  a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+function importBackup(){
+  const f=$('importFileSettings');f.value='';f.onchange=async e=>{
+    const file=e.target.files[0];if(!file)return;
+    if(!confirm('将用备份文件覆盖当前全部数据（当前页面会刷新锁定），确定？'))return;
+    if(await restoreFromFile(file)){toast('恢复成功，即将刷新','ok');setTimeout(()=>location.reload(),800)}
+  };
+  f.click();
+}
+async function restoreFromFile(file){
+  try{
+    const bundle=JSON.parse(await file.text());
+    if(bundle.app!=='asset-vault')throw 0;
+    localStorage.setItem(LS_VAULT,JSON.stringify(bundle.vault));
+    localStorage.setItem(LS_DATA,JSON.stringify(bundle.data));
+    return true;
+  }catch(e){toast('文件无效或已损坏','err');return false}
+}
+function lockNow(){
+  DATA=null;dekKey=null;
+  $('app').style.display='none';$('lock').style.display='flex';
+  $('pwd').value='';showLockMode('enter');
+}
+async function wipeData(){
+  if(!confirm('⚠️ 将清空全部数据且无法恢复（云端密文也会在下次同步时被空数据覆盖）。确定？'))return;
+  if(!confirm('再次确认：真的要清空全部数据吗？建议先导出备份。'))return;
+  localStorage.removeItem(LS_VAULT);localStorage.removeItem(LS_DATA);
+  location.reload();
+}
+function addHistoryPoint(){$('hsDate').value=todayStr();$('hsFin').value='';$('hsRE').value='';showModal('m-hist')}
+async function saveHistPoint(){
+  const d=$('hsDate').value, fin=parseFloat($('hsFin').value), re=parseFloat($('hsRE').value)||0;
+  if(!d||!fin){toast('请填写日期和金额','err');return}
+  DATA.snapshots=DATA.snapshots.filter(s=>s.d!==d);
+  DATA.snapshots.push({d,fin,re});
+  await persistData();hideModal('m-hist');renderTrend();toast('已补录','ok');
+}
+function exportSnapshots(){
+  const rows=[['日期','金融资产','房产净值','合计'],...DATA.snapshots.map(s=>[s.d,s.fin,s.re||0,s.fin+(s.re||0)])];
+  dl(rows.map(r=>r.join(',')).join('\n'),'资产快照-'+todayStr()+'.csv');
+  toast('已导出 CSV','ok');
+}
+
+/* ---------------- GitHub 云同步 ---------------- */
+function getGH(){try{return JSON.parse(localStorage.getItem(LS_GH))}catch(e){return null}}
+function setSyncBadge(s){
+  const el=$('syncBadge');
+  if(s){el.textContent=s;renderSyncBadgeOnly(s);return}
+  renderSyncBadgeOnly();
+}
+function renderSyncBadgeOnly(extra){
+  const el=$('syncBadge'),gh=getGH();
+  if(extra){el.textContent=extra;return}
+  el.textContent=gh?(gh.gistId?'☁️ 已同步':'☁️ 已连接'):'💾 仅本机';
+}
+const GH_API='https://api.github.com';
+function ghHeaders(){const gh=getGH();return {'Authorization':'Bearer '+gh.token,'Accept':'application/vnd.github+json','Content-Type':'application/json'}}
+async function ghConnect(){
+  const user=$('ghUser').value.trim(), token=$('ghToken').value.trim();
+  if(!user||!token){toast('请填写用户名和 Token','err');return}
+  localStorage.setItem(LS_GH,JSON.stringify({user,token,gistId:null}));
+  try{
+    const r=await fetch(GH_API+'/gists',{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}});
+    if(r.status===401||r.status===403){toast('Token 无效或无 gist 权限','err');localStorage.removeItem(LS_GH);return}
+    const gists=await r.json();
+    const found=gists.find(g=>g.files&&g.files['asset-vault.dat']);
+    if(found){
+      const gh=getGH();gh.gistId=found.id;localStorage.setItem(LS_GH,JSON.stringify(gh));
+      const remote=JSON.parse(found.files['asset-vault.dat'].content);
+      if(remote.data&&confirm('云端已有备份数据（更新于 '+new Date(remote.updatedAt).toLocaleString()+'）。要用云端数据覆盖本机吗？（选「取消」则保留本机数据并推送）')){
+        localStorage.setItem(LS_VAULT,JSON.stringify(remote.vault));
+        localStorage.setItem(LS_DATA,JSON.stringify(remote.data));
+        location.reload();return;
+      }
+    }
+    await ghPush();
+    toast('连接成功，数据已加密上传','ok');
+  }catch(e){toast('网络错误，请稍后重试','err')}
+  fillSettings();
+}
+async function ghPush(){
+  const gh=getGH();if(!gh)return;
+  const bundle={app:'asset-vault',v:1,updatedAt:Date.now(),
+    vault:JSON.parse(localStorage.getItem(LS_VAULT)),data:JSON.parse(localStorage.getItem(LS_DATA))};
+  const body=JSON.stringify({description:'AssetVault encrypted backup (private)',public:false,
+    files:{'asset-vault.dat':{content:JSON.stringify(bundle)}}});
+  let r;
+  if(gh.gistId) r=await fetch(GH_API+'/gists/'+gh.gistId,{method:'PATCH',headers:ghHeaders(),body});
+  else{
+    r=await fetch(GH_API+'/gists',{method:'POST',headers:ghHeaders(),body});
+    if(r.ok){const g=await r.json();gh.gistId=g.id;localStorage.setItem(LS_GH,JSON.stringify(gh))}
+  }
+  if(!r.ok)throw new Error('push fail '+r.status);
+  setSyncBadge('☁️ 已同步 '+new Date().toLocaleTimeString().slice(0,5));
+}
+async function ghPullOnly(interactive){
+  const gh=getGH();if(!gh){if(interactive)toast('请先连接 GitHub','err');return}
+  try{
+    let g=null;
+    if(gh.gistId){g=await (await fetch(GH_API+'/gists/'+gh.gistId,{headers:ghHeaders()})).json()}
+    else{
+      const list=await (await fetch(GH_API+'/gists',{headers:ghHeaders()})).json();
+      g=list.find?list.find(x=>x.files&&x.files['asset-vault.dat']):null;
+      if(g){gh.gistId=g.id;localStorage.setItem(LS_GH,JSON.stringify(gh));
+        g=await (await fetch(GH_API+'/gists/'+g.id,{headers:ghHeaders()})).json()}
+    }
+    if(!g||!g.files||!g.files['asset-vault.dat']){if(interactive)toast('云端没有找到备份数据','err');return}
+    const remote=JSON.parse(g.files['asset-vault.dat'].content);
+    if(remote.updatedAt>(DATA?DATA.updatedAt:0)){
+      if(interactive&&!confirm('云端数据较新（'+new Date(remote.updatedAt).toLocaleString()+'），覆盖本机？'))return;
+      localStorage.setItem(LS_VAULT,JSON.stringify(remote.vault));
+      localStorage.setItem(LS_DATA,JSON.stringify(remote.data));
+      toast('已拉取云端较新数据，即将重新解锁','');
+      setTimeout(()=>location.reload(),interactive?900:100);
+    }else if(interactive)toast('本机已是最新','ok');
+  }catch(e){if(interactive)toast('拉取失败：'+e.message,'err')}
+}
+
+/* ---------------- 通用 UI ---------------- */
+function showView(v){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+  $('v-'+v).classList.add('on');
+  document.querySelectorAll('nav.mainnav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  window.scrollTo(0,0);
+}
+function showModal(id){$(id).classList.add('on')}
+function hideModal(id){$(id).classList.remove('on')}
+function toast(msg,type){
+  const d=document.createElement('div');
+  d.className='toastitem'+(type?' '+type:'');d.textContent=msg;
+  $('toast').appendChild(d);
+  setTimeout(()=>d.remove(),2600);
+}
+/* 锁屏内恢复 */
+function showImportOnLock(){showLockMode('import')}
+function backToPwd(){showLockMode('enter')}
+function showLockMode(m){
+  ['lockCreate','lockEnter','lockRecovery','lockImport'].forEach(x=>$(x).style.display='none');
+  $({create:'lockCreate',enter:'lockEnter',recovery:'lockRecovery',import:'lockImport'}[m]).style.display='block';
+  if(m!=='import')$('lockImport').style.display='none';
+  const lm=$('lockMsg');if(lm)lm.textContent='';
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const f=$('importFileLock');
+  if(f)f.onchange=async e=>{
+    const file=e.target.files[0];if(!file)return;
+    if(await restoreFromFile(file)){$('impMsg').textContent='✅ 已恢复，请用备份文件的密码解锁';showLockMode('enter')}
+    else $('impMsg').textContent='文件无效或已损坏';
+  };
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')document.querySelectorAll('.modal-bg.on').forEach(m=>m.classList.remove('on'));
+  });
+});
+
+/* ---------------- 启动 ---------------- */
+function demoData(){
+  const acc={bank:{id:'a1',name:'工商银行(工资卡)',kind:'bank'},cmb:{id:'a2',name:'招商银行APP',kind:'bank'},
+    tt:{id:'a3',name:'天天基金',kind:'app'},ht:{id:'a4',name:'华泰证券',kind:'broker'},zfb:{id:'a5',name:'支付宝',kind:'app'},
+    phy:{id:'a6',name:'实物资产',kind:'other'}};
+  const t=todayStr();
+  const snaps=[];
+  for(let i=8;i>=0;i--){
+    const d=new Date(Date.now()-i*7*86400000);
+    const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const fin=528000+i*3800+Math.sin(i)*6000;
+    snaps.push({d:ds,fin:Math.round(fin),re:2800000});
+  }
+  return {
+    v:1, demo:true, updatedAt:Date.now(),
+    settings:{age:40,expense:9000,risk:'balanced'},
+    accounts:Object.values(acc),
+    snapshots:snaps,
+    holdings:[
+      {id:uid(),type:'cash',accountId:acc.cmb.id,name:'招行活期',code:'',bal:86000,cost:86000,factor:1,corrections:[]},
+      {id:uid(),type:'mmf',accountId:acc.zfb.id,name:'余额宝',code:'',bal:42000,yield7:1.42,cost:42000,factor:1,corrections:[]},
+      {id:uid(),type:'stock',accountId:acc.ht.id,name:'贵州茅台',code:'600519',qty:60,cost:91000,factor:1,corrections:[],note:'示例数据'},
+      {id:uid(),type:'fund',accountId:acc.tt.id,name:'易方达沪深300A',code:'110020',qty:52000,cost:68000,factor:1,corrections:[]},
+      {id:uid(),type:'pension',accountId:acc.tt.id,name:'天弘红利低波100A',code:'008114',qty:61000,cost:53000,factor:1,corrections:[],note:'养老金定投 · 每月定投2000'},
+      {id:uid(),type:'qdii',accountId:acc.tt.id,name:'广发纳斯达克100A',code:'270042',qty:42000,cost:96000,factor:1,corrections:[]},
+      {id:uid(),type:'qdii',accountId:acc.tt.id,name:'博时标普500A',code:'050025',qty:31000,cost:64000,factor:1,corrections:[]},
+      {id:uid(),type:'bond',accountId:acc.cmb.id,name:'储蓄国债(3年)',code:'',face:150000,rate:2.38,buyDate:'2025-06-10',cost:150000,factor:1,corrections:[]},
+      {id:uid(),type:'realestate',accountId:acc.phy.id,name:'自住房产(净值)',code:'',reVal:2800000,cost:2800000,factor:1,corrections:[]}
+    ]
+  };
+}
+async function bootApp(){
+  $('lock').style.display='none';
+  $('app').style.display='block';
+  showView('overview');
+  renderAll();
+  await refreshQuotes(false);
+  takeDailySnapshot();
+  if(getGH())ghPullOnly(false).catch(()=>{}); // 打开时自动检查云端是否有更新
+}
+async function takeDailySnapshot(){
+  const t=todayStr();
+  const tt=calcTotals();
+  if(!tt.fin)return;
+  const exist=(DATA.snapshots||[]).find(s=>s.d===t);
+  if(exist){exist.fin=Math.round(tt.fin);exist.re=Math.round(tt.re)}
+  else{DATA.snapshots=DATA.snapshots||[];DATA.snapshots.push({d:t,fin:Math.round(tt.fin),re:Math.round(tt.re)})}
+  await persistData();
+  renderTrend();
+}
+/* 初始化 */
+(function init(){
+  if(hasVault()){showLockMode('enter')}
+  else{showLockMode('create')}
+})();
+</script>
+</body>
+</html>
